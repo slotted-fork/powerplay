@@ -124,15 +124,17 @@ int main()
 	  if (elapsed_secs >= config.averaging_secs) {
 	       int32_t power_excess_mean = excess_acc / n;
 
-	       printf("Excess mean (%lds): %6dW, charger status: %s, charging mode: %s, charge start: %u, can charge: %d\n",
-		      elapsed_secs,power_excess_mean, get_charger_status(evcs_data.charger_status),
-		      get_charging_mode(evcs_data.charging_mode), evcs_data.charge_start, can_charge);
-
 	       if (power_excess_mean < config.power_excess_min) {
 		    evcs_should_charge = 0;
 	       } else {
 		    evcs_should_charge = 1;
 	       }
+
+	       printf("Excess mean (%lds): %6dW, charger status: %s, charging mode: %s, "
+		      "charge start: %u, can/should charge: %d/%d\n",
+		      elapsed_secs,power_excess_mean, get_charger_status(evcs_data.charger_status),
+		      get_charging_mode(evcs_data.charging_mode), evcs_data.charge_start,
+		      can_charge, evcs_should_charge);
 
 	       /* Start new averaging cycle */
 	       n = 0;
