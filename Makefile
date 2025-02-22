@@ -5,6 +5,8 @@ CFLAGS += $(shell pkg-config --cflags libmodbus)
 LDFLAGS += -fsanitize=undefined
 LDFLAGS += $(shell pkg-config --libs libmodbus)
 
+PREFIX ?= .
+
 TARGETS = sparkshift amptrack
 
 .PHONY: all clean
@@ -16,6 +18,9 @@ all: $(TARGETS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+install:
+	install -m755 -Dt $(PREFIX)/bin/ $(TARGETS)
 
 clean:
 	rm -f $(TARGETS) *.o
