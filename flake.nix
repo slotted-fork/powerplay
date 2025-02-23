@@ -126,14 +126,9 @@
                     RestartSec = "30";
 
                     Type = "simple";
-                    StandardOutput = "journal";
-                    StandardError = "journal";
-                    SyslogIdentifier = "sparkshift";
 
-                    User = "sparkshift";
-                    Group = "sparkshift";
+                    DynamicUser = true;
                     ReadOnlyPaths = "/";
-                    NoNewPrivileges = true;
                     RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
                     CapabilityBoundingSet = "";
                     SystemCallFilter = [ "@system-service" ];
@@ -159,14 +154,9 @@
                     RestartSec = "30";
 
                     Type = "simple";
-                    StandardOutput = "journal";
-                    StandardError = "journal";
-                    SyslogIdentifier = "amptrack";
 
-                    User = "amptrack";
-                    Group = "amptrack";
+                    DynamicUser = true;
                     ReadOnlyPaths = "/";
-                    NoNewPrivileges = true;
                     RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
                     CapabilityBoundingSet = "";
                     SystemCallFilter = [ "@system-service" ];
