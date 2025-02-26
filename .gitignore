@@ -1,0 +1,6 @@
+.direnv
+.ccls-cache
+result
+*.o
+amptrack
+sparkshift
