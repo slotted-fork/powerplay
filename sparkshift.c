@@ -29,7 +29,7 @@ bool config_from_env(struct config_t *config);
  */
 
 
-int main()
+int main(void)
 {
      modbus_t *gx_ctx, *evcs_ctx;
 
