@@ -104,10 +104,10 @@ struct evcs_data_t {
      uint16_t charging_mode;
 };
 
+const char *get_charger_status(evcs_charger_status_t status);
+const char *get_charging_mode(evcs_charge_mode_t mode);
 const char *get_watchdog_reason(uint16_t code);
 const char *get_reset_reason(uint16_t code);
-const char *get_charging_mode(uint16_t code);
-const char *get_charger_status(uint16_t code);
 bool evcs_data_get(modbus_t *ctx, struct evcs_data_t *data);
 
 /*
@@ -182,9 +182,9 @@ bool gx_data_get(modbus_t *ctx, struct gx_data_t *data) {
  *
  */
 
-const char *get_charger_status(uint16_t code)
+const char *get_charger_status(evcs_charger_status_t status)
 {
-     switch (code) {
+     switch (status) {
      case 0:
 	  return "Disconnected";
      case 1:
@@ -236,9 +236,9 @@ const char *get_charger_status(uint16_t code)
      }
 }
 
-const char *get_charging_mode(uint16_t code)
+const char *get_charging_mode(evcs_charge_mode_t mode)
 {
-     switch (code) {
+     switch (mode) {
      case 0:
 	  return "Manual";
      case 1:
