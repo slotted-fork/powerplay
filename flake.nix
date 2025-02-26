@@ -190,8 +190,7 @@
 
           installPhase = ''
             runHook preInstall
-            install -m755 -Dt $out/bin/ amptrack
-            install -m755 -Dt $out/bin/ sparkshift
+            make PREFIX="$out" install
             runHook postInstall
           '';
 
