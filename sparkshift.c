@@ -64,6 +64,7 @@ int main()
 
      /* Start control loop */
 
+     /* Default to maintain the current charging setting */
      uint16_t evcs_should_charge = evcs_data.charge_start;
      uint16_t evcs_charger_status_previous = evcs_data.charger_status;
 
@@ -72,7 +73,6 @@ int main()
      int32_t  n = 0;
 
      time(&start);
-
      printf("Starting control loop\n");
      fflush(stdout);
 
@@ -90,27 +90,28 @@ int main()
 	  int32_t excess = gx_data.battery_power + evcs_data.power_total - gx_data.grid_power_total;
 	  excess_acc += excess;
 
-	  if(config.debug) {
-	       printf("DEBUG: n: %3d, grid: %6d, battery: %6d, evcs: %6d, excess: %6d, "
-		      "excess_acc: %6d, mean excess: %6d\n",
-		      n, gx_data.grid_power_total, gx_data.battery_power, evcs_data.power_total,
-		      excess, excess_acc, excess_acc / n);
+	  /* Only make charging available if in a know good state to do so */
+	  int can_charge = 0;
+	  if (evcs_data.charging_mode == EVCS_CHARGE_MODE_AUTO
+	      && (evcs_data.charger_status == EVCS_CHARGER_STATUS_CONNECTED
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_CHARGING
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_CHARGED
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_WAITING_FOR_SUN
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_WAITING_FOR_START
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_CHARGING_LIMIT
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_START_CHARGING
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_SWITCHING_TO_3_PHASE
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_SWITCHING_TO_1_PHASE
+		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_STOP_CHARGING)) {
+	       can_charge = 1;
 	  }
 
-	  /* TODO(sf): evaluate charger state and only control when reasonable
-	   *
-	   * Eg. when charger reports disconnected (or maybe some fault) in which case we should not
-	   * try and enable charging until this state is resolved
-	   *
-	   * This could be extended to other conditions when eg. the battery charge is too low and
-	   * the battery should be prioritised
-	   *
-	   * We still want to collect the data and assess the excess so once eg. the vehicle is
-	   * connected we can already determine whether charging should occur
-	   *
-	   * No implementing this leads to a lot of noisy log messages about setting the charge
-	   * start setting when no charging can occur
-	   */
+	  if(config.debug) {
+	       printf("DEBUG: n: %3d, grid: %6d, battery: %6d, evcs: %6d, excess: %6d, "
+		      "excess_acc: %6d, mean excess: %6d, can charge: %d\n",
+		      n, gx_data.grid_power_total, gx_data.battery_power, evcs_data.power_total,
+		      excess, excess_acc, excess_acc / n, can_charge);
+	  }
 
 	  /* Report change in charger status */
 	  if (evcs_charger_status_previous != evcs_data.charger_status) {
@@ -118,14 +119,14 @@ int main()
 	       evcs_charger_status_previous = evcs_data.charger_status;
 	  }
 
-          /* Assess excess if averaging secs have passed */
+          /* Assess excess only if averaging secs have passed */
 	  time_t elapsed_secs = current - start;
 	  if (elapsed_secs >= config.averaging_secs) {
 	       int32_t power_excess_mean = excess_acc / n;
 
-	       printf("Excess mean (%lds): %6dW, charger status: %s, charging mode: %s, charge start: %u\n",
+	       printf("Excess mean (%lds): %6dW, charger status: %s, charging mode: %s, charge start: %u, can charge: %d\n",
 		      elapsed_secs,power_excess_mean, get_charger_status(evcs_data.charger_status),
-		      get_charging_mode(evcs_data.charging_mode), evcs_data.charge_start);
+		      get_charging_mode(evcs_data.charging_mode), evcs_data.charge_start, can_charge);
 
 	       if (power_excess_mean < config.power_excess_min) {
 		    evcs_should_charge = 0;
@@ -140,7 +141,7 @@ int main()
 	  }
 
 	  /* Switch charge control if required */
-	  if (evcs_should_charge != evcs_data.charge_start) {
+	  if (can_charge && evcs_should_charge != evcs_data.charge_start) {
 	       printf("Set charge start: %u\n", evcs_should_charge);
 	       if (modbus_write_register(evcs_ctx, EVCS_REGISTER_CHARGE_START, evcs_should_charge) == -1) {
 		    fprintf(stderr, "Error: could not set charging: %s\n", modbus_strerror(errno));
