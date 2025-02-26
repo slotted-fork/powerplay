@@ -341,7 +341,8 @@ bool modbus_device_connect(struct modbus_device_t device, modbus_t **ctx) {
      }
 
      if (modbus_connect(*ctx) == -1) {
-	  fprintf(stderr, "Error: connection failed: %s\n", modbus_strerror(errno));
+	  fprintf(stderr, "Error: connection failed to %s:%d: %s\n",
+		  device.host, device.port, modbus_strerror(errno));
 	  return 1;
      }
 
