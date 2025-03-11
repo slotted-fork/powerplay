@@ -67,6 +67,8 @@ int main(void)
      /* Default to maintain the current charging setting */
      uint16_t evcs_should_charge = evcs_data.charge_start;
      uint16_t evcs_charger_status_previous = evcs_data.charger_status;
+     /* Track if the EV has been in CHARGED state during this connection session */
+     bool ev_has_been_charged = false;
 
      time_t   start, current;
      int32_t  excess_acc = 0;
@@ -95,7 +97,7 @@ int main(void)
 	  if (evcs_data.charging_mode == EVCS_CHARGE_MODE_AUTO
 	      && (evcs_data.charger_status == EVCS_CHARGER_STATUS_CONNECTED
 		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_CHARGING
-		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_CHARGED
+		  /* CHARGED status intentionally removed to prevent oscillation */
 		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_WAITING_FOR_SUN
 		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_WAITING_FOR_START
 		  || evcs_data.charger_status == EVCS_CHARGER_STATUS_CHARGING_LIMIT
@@ -108,27 +110,42 @@ int main(void)
 
 	  if(config.debug) {
 	       printf("DEBUG: n: %3d, grid: %6d, battery: %6d, evcs: %6d, excess: %6d, "
-		      "excess_acc: %6d, mean excess: %6d, can charge: %d\n",
+		      "excess_acc: %6d, mean excess: %6d, can charge: %d, fully charged: %d\n",
 		      n, gx_data.grid_power_total, gx_data.battery_power, evcs_data.power_total,
-		      excess, excess_acc, excess_acc / n, can_charge);
+		      excess, excess_acc, excess_acc / n, can_charge, ev_has_been_charged);
 	  }
 
 	  /* Report change in charger status */
 	  if (evcs_charger_status_previous != evcs_data.charger_status) {
 	       printf("Charger status changed to: %s\n", get_charger_status(evcs_data.charger_status));
 
-	       /* If EV is disconnected while in manual mode, switch to auto mode to prevent
-		* unexpected charging when reconnected */
-	       if (evcs_data.charger_status == EVCS_CHARGER_STATUS_DISCONNECTED &&
-		   evcs_data.charging_mode == EVCS_CHARGE_MODE_MANUAL) {
-		    printf("EV disconnected while in manual mode. Switching to auto mode...\n");
+	       /* If EV reaches CHARGED state, mark it as charged for this connection session */
+	       if (evcs_data.charger_status == EVCS_CHARGER_STATUS_CHARGED) {
+		    ev_has_been_charged = true;
+		    printf("EV has reached CHARGED state, will not restart charging until disconnected\n");
 		    fflush(stdout);
-		    if (modbus_write_register(evcs_ctx, EVCS_REGISTER_CHARGE_MODE, EVCS_CHARGE_MODE_AUTO) == -1) {
-			 fprintf(stderr, "Error: could not set charging mode to auto: %s\n", modbus_strerror(errno));
-			 fflush(stderr);
-		    } else {
-			 printf("Successfully switched to auto mode\n");
+	       }
+
+	       /* If EV is disconnected, reset the charged flag and switch to auto mode if needed */
+	       if (evcs_data.charger_status == EVCS_CHARGER_STATUS_DISCONNECTED) {
+		    /* Reset the charged flag when EV is disconnected */
+		    if (ev_has_been_charged) {
+			 ev_has_been_charged = false;
+			 printf("EV disconnected, resetting charged state tracking\n");
 			 fflush(stdout);
+		    }
+
+		    /* If in manual mode, switch to auto mode to prevent unexpected charging when reconnected */
+		    if (evcs_data.charging_mode == EVCS_CHARGE_MODE_MANUAL) {
+			 printf("EV disconnected while in manual mode. Switching to auto mode...\n");
+			 fflush(stdout);
+			 if (modbus_write_register(evcs_ctx, EVCS_REGISTER_CHARGE_MODE, EVCS_CHARGE_MODE_AUTO) == -1) {
+			      fprintf(stderr, "Error: could not set charging mode to auto: %s\n", modbus_strerror(errno));
+			      fflush(stderr);
+			 } else {
+			      printf("Successfully switched to auto mode\n");
+			      fflush(stdout);
+			 }
 		    }
 	       }
 
@@ -147,10 +164,10 @@ int main(void)
 	       }
 
 	       printf("Excess mean (%lds): %6dW, charger status: %s, charging mode: %s, "
-		      "charge start: %u, can/should charge: %d/%d\n",
+		      "charge state: %u/%d/%d/%d\n",
 		      elapsed_secs,power_excess_mean, get_charger_status(evcs_data.charger_status),
 		      get_charging_mode(evcs_data.charging_mode), evcs_data.charge_start,
-		      can_charge, evcs_should_charge);
+		      can_charge, evcs_should_charge, ev_has_been_charged);
 
 	       /* Start new averaging cycle */
 	       n = 0;
@@ -159,10 +176,17 @@ int main(void)
 	  }
 
 	  /* Switch charge control if required */
-	  if (can_charge && evcs_should_charge != evcs_data.charge_start) {
+	  if (can_charge && !ev_has_been_charged && evcs_should_charge != evcs_data.charge_start) {
 	       printf("Set charge start: %u\n", evcs_should_charge);
 	       if (modbus_write_register(evcs_ctx, EVCS_REGISTER_CHARGE_START, evcs_should_charge) == -1) {
 		    fprintf(stderr, "Error: could not set charging: %s\n", modbus_strerror(errno));
+		    fflush(stderr);
+	       }
+	  } else if (ev_has_been_charged && evcs_data.charge_start == 1) {
+	       /* If EV has been charged during this session and charging is still on, turn it off */
+	       printf("EV has been fully charged, stopping charging\n");
+	       if (modbus_write_register(evcs_ctx, EVCS_REGISTER_CHARGE_START, 0) == -1) {
+		    fprintf(stderr, "Error: could not stop charging: %s\n", modbus_strerror(errno));
 		    fflush(stderr);
 	       }
 	  }
