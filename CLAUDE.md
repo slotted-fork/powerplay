@@ -1,8 +1,17 @@
 # PowerPlay Development Guidelines
 
-This file serves as a memory for Claude and other AI coding assistants. When asked to "remember" something about code style or project preferences, Claude will add those details to this file.
+This file serves as a memory for Claude and other AI coding assistants. 
 
-All commits made by Claude should be prefixed with "(CC)" to indicate they were made by Claude Code.
+## IMPORTANT: KEYWORD INSTRUCTIONS
+When the user says "remember" or "remember this" about any preference, coding style, workflow, or project convention, Claude MUST:
+1. IMMEDIATELY add the information to this file 
+2. Only commit the change when explicitly instructed to do so
+3. Confirm to the user that the information has been added to CLAUDE.md
+
+No exceptions. This is a critical instruction that ensures consistent knowledge retention.
+
+## Commit Guidelines
+ALL commits made by Claude (regardless of content or context) MUST be prefixed with "(CC)" to indicate they were made by Claude Code. This applies to every commit, not just changes to this file.
 
 ## Build Commands
 - `make` - Build all targets (sparkshift, amptrack)
