@@ -1,5 +1,12 @@
-#ifndef INCLUDE_POWERPLAY_H
-#define INCLUDE_POWERPLAY_H
+#ifndef POWERPLAY_H
+#define POWERPLAY_H
+
+/*
+ * powerplay.h - PowerPlay energy management system for Victron Energy ecosystem
+ *
+ * This library provides interfaces for communication with Victron GX devices
+ * and EVCS (Electric Vehicle Charging Station) via Modbus TCP.
+ */
 
 #include <errno.h>
 #include <stdbool.h>
@@ -13,7 +20,11 @@
  *
  */
 
-/* CCGX Modbus TCP register list 3.50 */
+/*
+ * Modbus register addresses for the GX device
+ *
+ * Based on CCGX Modbus TCP register list version 3.50
+ */
 typedef enum {
      GX_REGISTER_SWITCH_POSITION			= 33,  /* uint16, com.victronenergy.vebus */
      GX_REGISTER_PV_AC_IN_L1				= 811, /* uint16, com.victronenergy.system */
@@ -28,23 +39,50 @@ typedef enum {
      GX_REGISTER_BATTERY_POWER				= 842, /* int16,  com.victronenergy.system */
 } gx_register_t;
 
+/*
+ * GX switch position control values
+ *
+ * Values used to control the operating mode of the GX device
+ */
 typedef enum {
-     GX_SWITCH_CHARGER_ONLY				= 1,
-     GX_SWITCH_INVERTER_ONLY				= 2,
-     GX_SWITCH_ON					= 3,
-     GX_SWITCH_OFF					= 4,
+     GX_SWITCH_CHARGER_ONLY				= 1, /* Device operates in charger-only mode */
+     GX_SWITCH_INVERTER_ONLY				= 2, /* Device operates in inverter-only mode */
+     GX_SWITCH_ON					= 3, /* Device is fully on (both charging and inverting) */
+     GX_SWITCH_OFF					= 4, /* Device is turned off */
 } gx_switch_t;
 
+/*
+ * Data structure for GX device power information
+ *
+ * Contains power data from various sources including grid, PV, and consumption
+ * values across three phases, as well as battery power and calculated totals.
+ */
 struct gx_data_t {
-     int32_t battery_power;
-     int32_t grid_power_total;
-     int16_t grid_power_l1, grid_power_l2, grid_power_l3;
-     int32_t pv_power_total;
-     int16_t pv_power_l1, pv_power_l2, pv_power_l3;
-     int32_t consumption_power_total;
-     int16_t consumption_power_l1, consumption_power_l2, consumption_power_l3;
+     int32_t battery_power;              /* Battery power in watts (positive = charging) */
+     int32_t grid_power_total;           /* Total grid power across all phases in watts */
+     int16_t grid_power_l1;              /* Grid power phase 1 in watts (positive = import) */
+     int16_t grid_power_l2;              /* Grid power phase 2 in watts (positive = import) */
+     int16_t grid_power_l3;              /* Grid power phase 3 in watts (positive = import) */
+     int32_t pv_power_total;             /* Total PV (solar) power across all phases in watts */
+     int16_t pv_power_l1;                /* PV power phase 1 in watts */
+     int16_t pv_power_l2;                /* PV power phase 2 in watts */
+     int16_t pv_power_l3;                /* PV power phase 3 in watts */
+     int32_t consumption_power_total;    /* Total power consumption across all phases in watts */
+     int16_t consumption_power_l1;       /* Power consumption phase 1 in watts */
+     int16_t consumption_power_l2;       /* Power consumption phase 2 in watts */
+     int16_t consumption_power_l3;       /* Power consumption phase 3 in watts */
 };
 
+/*
+ * Retrieves data from a GX device via Modbus
+ *
+ * Reads multiple registers from the GX device to gather power information
+ * including grid power, PV (solar) power, battery status, and consumption data.
+ *
+ * ctx: Initialized Modbus context connected to a GX device
+ * data: Pointer to a gx_data_t structure to populate with the retrieved data
+ * return: true on error, false on success
+ */
 bool gx_data_get(modbus_t *ctx, struct gx_data_t *data);
 
 /*
@@ -53,61 +91,118 @@ bool gx_data_get(modbus_t *ctx, struct gx_data_t *data);
  *
  */
 
-/* EVCS Modbus TCP register list 3.5 */
+/*
+ * Modbus register addresses for the EVCS device
+ *
+ * Based on EVCS Modbus TCP register list version 3.5
+ */
 typedef enum {
-     EVCS_REGISTER_CHARGE_MODE				= 5009, /* uint16_t */
-     EVCS_REGISTER_CHARGE_START				= 5010, /* uint16_t */
-     EVCS_REGISTER_TOTAL_POWER				= 5014, /* uint16_t */
-     EVCS_REGISTER_CHARGER_STATUS			= 5015, /* uint16_t */
-     EVCS_REGISTER_CHARGING_CURRENT			= 5016, /* uint16_t */
-     EVCS_REGISTER_MAX_CURRENT				= 5017, /* uint16_t */
+     EVCS_REGISTER_CHARGE_MODE				= 5009, /* Charging mode (manual/auto/scheduled) */
+     EVCS_REGISTER_CHARGE_START				= 5010, /* Start/stop charging flag */
+     EVCS_REGISTER_TOTAL_POWER				= 5014, /* Total power consumption in watts */
+     EVCS_REGISTER_CHARGER_STATUS			= 5015, /* Current status of the charger */
+     EVCS_REGISTER_CHARGING_CURRENT			= 5016, /* Current charging current in 0.1A */
+     EVCS_REGISTER_MAX_CURRENT				= 5017, /* Maximum allowed charging current in 0.1A */
 } evcs_register_t;
 
+/*
+ * EVCS charging mode options
+ *
+ * Defines the different modes for controlling the EV charging process
+ */
 typedef enum {
-     EVCS_CHARGE_MODE_MANUAL				= 0,
-     EVCS_CHARGE_MODE_AUTO				= 1,
-     EVCS_CHARGE_MODE_SCHED				= 2,
+     EVCS_CHARGE_MODE_MANUAL				= 0, /* Manual mode - user controls charging */
+     EVCS_CHARGE_MODE_AUTO				= 1, /* Automatic mode - system controls charging */
+     EVCS_CHARGE_MODE_SCHED				= 2, /* Scheduled mode - charging follows a time schedule */
 } evcs_charge_mode_t;
 
+/*
+ * EVCS charger status codes
+ *
+ * Defines all possible states of the EV charging station
+ * including normal operation, waiting conditions, and error states
+ */
 typedef enum {
-    EVCS_CHARGER_STATUS_DISCONNECTED			= 0,
-    EVCS_CHARGER_STATUS_CONNECTED			= 1,
-    EVCS_CHARGER_STATUS_CHARGING			= 2,
-    EVCS_CHARGER_STATUS_CHARGED				= 3,
-    EVCS_CHARGER_STATUS_WAITING_FOR_SUN			= 4,
-    EVCS_CHARGER_STATUS_WAITING_FOR_RFID		= 5,
-    EVCS_CHARGER_STATUS_WAITING_FOR_START		= 6,
-    EVCS_CHARGER_STATUS_LOW_SOC				= 7,
-    EVCS_CHARGER_STATUS_GROUND_TEST_ERROR		= 8,
-    EVCS_CHARGER_STATUS_WELDED_CONTACTS_ERROR		= 9,
-    EVCS_CHARGER_STATUS_CP_INPUT_ERROR_SHORTED		= 10,
-    EVCS_CHARGER_STATUS_RESIDUAL_CURRENT_DETECTED	= 11,
-    EVCS_CHARGER_STATUS_UNDERVOLTAGE_DETECTED		= 12,
-    EVCS_CHARGER_STATUS_OVERVOLTAGE_DETECTED		= 13,
-    EVCS_CHARGER_STATUS_OVERHEATING_DETECTED		= 14,
-    EVCS_CHARGER_STATUS_RESERVED_15			= 15,
-    EVCS_CHARGER_STATUS_RESERVED_16			= 16,
-    EVCS_CHARGER_STATUS_RESERVED_17			= 17,
-    EVCS_CHARGER_STATUS_RESERVED_18			= 18,
-    EVCS_CHARGER_STATUS_RESERVED_19			= 19,
-    EVCS_CHARGER_STATUS_CHARGING_LIMIT			= 20,
-    EVCS_CHARGER_STATUS_START_CHARGING			= 21,
-    EVCS_CHARGER_STATUS_SWITCHING_TO_3_PHASE		= 22,
-    EVCS_CHARGER_STATUS_SWITCHING_TO_1_PHASE		= 23,
-    EVCS_CHARGER_STATUS_STOP_CHARGING			= 24,
+    EVCS_CHARGER_STATUS_DISCONNECTED			= 0,  /* No vehicle connected */
+    EVCS_CHARGER_STATUS_CONNECTED			= 1,  /* Vehicle connected but not charging */
+    EVCS_CHARGER_STATUS_CHARGING			= 2,  /* Vehicle actively charging */
+    EVCS_CHARGER_STATUS_CHARGED				= 3,  /* Vehicle fully charged */
+    EVCS_CHARGER_STATUS_WAITING_FOR_SUN			= 4,  /* Waiting for solar power availability */
+    EVCS_CHARGER_STATUS_WAITING_FOR_RFID		= 5,  /* Waiting for RFID authentication */
+    EVCS_CHARGER_STATUS_WAITING_FOR_START		= 6,  /* Waiting for start command */
+    EVCS_CHARGER_STATUS_LOW_SOC				= 7,  /* Vehicle battery state of charge too low */
+    EVCS_CHARGER_STATUS_GROUND_TEST_ERROR		= 8,  /* Error in ground connection test */
+    EVCS_CHARGER_STATUS_WELDED_CONTACTS_ERROR		= 9,  /* Welded contacts detected */
+    EVCS_CHARGER_STATUS_CP_INPUT_ERROR_SHORTED		= 10, /* Control Pilot input error (shorted) */
+    EVCS_CHARGER_STATUS_RESIDUAL_CURRENT_DETECTED	= 11, /* Residual current detected (safety) */
+    EVCS_CHARGER_STATUS_UNDERVOLTAGE_DETECTED		= 12, /* Input voltage too low */
+    EVCS_CHARGER_STATUS_OVERVOLTAGE_DETECTED		= 13, /* Input voltage too high */
+    EVCS_CHARGER_STATUS_OVERHEATING_DETECTED		= 14, /* Charger temperature too high */
+    EVCS_CHARGER_STATUS_RESERVED_15			= 15, /* Reserved for future use */
+    EVCS_CHARGER_STATUS_RESERVED_16			= 16, /* Reserved for future use */
+    EVCS_CHARGER_STATUS_RESERVED_17			= 17, /* Reserved for future use */
+    EVCS_CHARGER_STATUS_RESERVED_18			= 18, /* Reserved for future use */
+    EVCS_CHARGER_STATUS_RESERVED_19			= 19, /* Reserved for future use */
+    EVCS_CHARGER_STATUS_CHARGING_LIMIT			= 20, /* Charging at power limit */
+    EVCS_CHARGER_STATUS_START_CHARGING			= 21, /* Starting the charging process */
+    EVCS_CHARGER_STATUS_SWITCHING_TO_3_PHASE		= 22, /* Switching to 3-phase charging */
+    EVCS_CHARGER_STATUS_SWITCHING_TO_1_PHASE		= 23, /* Switching to 1-phase charging */
+    EVCS_CHARGER_STATUS_STOP_CHARGING			= 24, /* Stopping the charging process */
 } evcs_charger_status_t;
 
+/*
+ * Data structure for EVCS (Electric Vehicle Charging Station) information
+ *
+ * Contains charging status, mode, and power usage data from the EVCS device.
+ */
 struct evcs_data_t {
-     int32_t power_total;
-     uint16_t charge_start;
-     uint16_t charger_status;
-     uint16_t charging_mode;
+     int32_t power_total;     /* Total power consumption of the charger in watts */
+     uint16_t charge_start;   /* Charge start flag (1 = start charging, 0 = stop) */
+     uint16_t charger_status; /* Current status of the charger (see evcs_charger_status_t) */
+     uint16_t charging_mode;  /* Current charging mode (see evcs_charge_mode_t) */
 };
 
+/*
+ * Converts EVCS charger status code to a human-readable string
+ *
+ * status: Status code from the EVCS device
+ * return: String representation of the charger status
+ */
 const char *get_charger_status(evcs_charger_status_t status);
+
+/*
+ * Converts EVCS charging mode code to a human-readable string
+ *
+ * mode: Charging mode code from the EVCS device
+ * return: String representation of the charging mode
+ */
 const char *get_charging_mode(evcs_charge_mode_t mode);
+
+/*
+ * Converts watchdog reason code to a human-readable string
+ *
+ * code: Watchdog reason code from the device
+ * return: String representation of the watchdog reason
+ */
 const char *get_watchdog_reason(uint16_t code);
+
+/*
+ * Converts reset reason code to a human-readable string
+ *
+ * code: Reset reason code from the device
+ * return: String representation of the reset reason
+ */
 const char *get_reset_reason(uint16_t code);
+
+/*
+ * Retrieves data from an EVCS device via Modbus
+ *
+ * Reads power, charging status, and mode information from the EVCS.
+ *
+ * ctx: Initialized Modbus context connected to an EVCS device
+ * data: Pointer to an evcs_data_t structure to populate with retrieved data
+ * return: true on error, false on success
+ */
 bool evcs_data_get(modbus_t *ctx, struct evcs_data_t *data);
 
 /*
@@ -116,22 +211,50 @@ bool evcs_data_get(modbus_t *ctx, struct evcs_data_t *data);
  *
  */
 
+/*
+ * Connection details for a Modbus TCP device
+ */
 struct modbus_device_t {
-     const char *host;
-     int port;
+     const char *host;  /* Hostname or IP address of the Modbus device */
+     int port;          /* TCP port number for the Modbus connection */
 };
 
+/*
+ * Configuration for PowerPlay operation
+ *
+ * Contains parameters for controlling the charging behavior,
+ * connection details for devices, and debug options.
+ */
 struct config_t {
-     int32_t power_excess_min;
-     time_t averaging_secs;
-     uint32_t sleep_secs;
-     int debug;
-     struct modbus_device_t gx;
-     struct modbus_device_t evcs;
+     int32_t power_excess_min;     /* Minimum excess power (watts) to start charging */
+     time_t averaging_secs;        /* Seconds to average excess power over */
+     uint32_t sleep_secs;          /* Seconds to sleep in control loop */
+     int debug;                    /* Debug level (0 = off, higher values = more verbose) */
+     struct modbus_device_t gx;    /* Connection details for the GX device */
+     struct modbus_device_t evcs;  /* Connection details for the EVCS device */
 };
 
+/*
+ * Establishes a Modbus TCP connection to a device
+ *
+ * Creates a new Modbus context, configures timeouts and error recovery,
+ * and connects to the specified host and port.
+ *
+ * device: Connection details including host and port
+ * ctx: Pointer to a modbus_t pointer that will be set to the new context
+ * return: true on error, false on success
+ */
 bool modbus_device_connect(struct modbus_device_t device, modbus_t **ctx);
 
+/*
+ * POWERPLAY_IMPLEMENTATION
+ *
+ * This macro implements a single-header library pattern.
+ * Define POWERPLAY_IMPLEMENTATION in exactly one source file
+ * before including this header to include the implementation.
+ * Other files should include the header without defining the macro
+ * to only include the declarations.
+ */
 #ifdef POWERPLAY_IMPLEMENTATION
 
 /*
@@ -349,6 +472,6 @@ bool modbus_device_connect(struct modbus_device_t device, modbus_t **ctx) {
      return 0;
 }
 
-#endif
+#endif /* POWERPLAY_IMPLEMENTATION */
 
-#endif
+#endif /* POWERPLAY_H */
