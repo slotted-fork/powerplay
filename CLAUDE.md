@@ -13,6 +13,9 @@ No exceptions. This is a critical instruction that ensures consistent knowledge 
 ## Commit Guidelines
 ALL commits made by Claude (regardless of content or context) MUST be prefixed with "(CC)" to indicate they were made by Claude Code. This applies to every commit, not just changes to this file.
 
+## Push Guidelines  
+NEVER push commits to remote repositories unless explicitly requested to do so. Even after committing changes, wait for a clear instruction to push.
+
 ## Build Commands
 - `make` - Build all targets (sparkshift, amptrack)
 - `make install` - Install binaries to $(PREFIX)/bin/
