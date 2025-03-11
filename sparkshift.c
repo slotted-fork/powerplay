@@ -116,6 +116,22 @@ int main(void)
 	  /* Report change in charger status */
 	  if (evcs_charger_status_previous != evcs_data.charger_status) {
 	       printf("Charger status changed to: %s\n", get_charger_status(evcs_data.charger_status));
+
+	       /* If EV is disconnected while in manual mode, switch to auto mode to prevent
+		* unexpected charging when reconnected */
+	       if (evcs_data.charger_status == EVCS_CHARGER_STATUS_DISCONNECTED &&
+		   evcs_data.charging_mode == EVCS_CHARGE_MODE_MANUAL) {
+		    printf("EV disconnected while in manual mode. Switching to auto mode...\n");
+		    fflush(stdout);
+		    if (modbus_write_register(evcs_ctx, EVCS_REGISTER_CHARGE_MODE, EVCS_CHARGE_MODE_AUTO) == -1) {
+			 fprintf(stderr, "Error: could not set charging mode to auto: %s\n", modbus_strerror(errno));
+			 fflush(stderr);
+		    } else {
+			 printf("Successfully switched to auto mode\n");
+			 fflush(stdout);
+		    }
+	       }
+
 	       evcs_charger_status_previous = evcs_data.charger_status;
 	  }
 
