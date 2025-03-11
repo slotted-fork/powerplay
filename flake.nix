@@ -67,7 +67,7 @@
                 };
                 sleepSecs = lib.mkOption {
                   type = lib.types.int;
-                  default = 10;
+                  default = 1;
                   description = "Control loop sleep seconds";
                 };
                 powerExcessMin = lib.mkOption {
