@@ -2,6 +2,8 @@
 
 This file serves as a memory for Claude and other AI coding assistants. When asked to "remember" something about code style or project preferences, Claude will add those details to this file.
 
+All commits made by Claude should be prefixed with "(CC)" to indicate they were made by Claude Code.
+
 ## Build Commands
 - `make` - Build all targets (sparkshift, amptrack)
 - `make install` - Install binaries to $(PREFIX)/bin/
