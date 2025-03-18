@@ -1,6 +1,9 @@
 .direnv
 .ccls-cache
-result
 *.o
+
+target
+result
+
 amptrack
 sparkshift

@@ -9,7 +9,7 @@ CFLAGS += $(shell pkg-config --cflags libmodbus)
 LDFLAGS += -fstack-protector-strong -fsanitize=undefined
 LDFLAGS += $(shell pkg-config --libs libmodbus)
 
-PREFIX ?= .
+PREFIX ?= ./target/
 
 TARGETS = sparkshift amptrack
 
