@@ -3,6 +3,39 @@
 
 #include "powerplay.h"
 
+/*
+ *
+ * Powerplay
+ *
+ */
+
+int modbus_device_connect(struct modbus_device device, modbus_t **ctx)
+{
+     *ctx = modbus_new_tcp(device.host, device.port);
+     if (*ctx == NULL) {
+	  fprintf(stderr, "Error: Failed to create modbus context: %s\n", modbus_strerror(errno));
+	  return -1;
+     }
+
+     if (modbus_set_response_timeout(*ctx, 5, 0) == -1) {
+	  fprintf(stderr, "Error: failed to set timeout: %s\n", modbus_strerror(errno));
+	  return -1;
+     }
+
+     if (modbus_set_error_recovery(*ctx, MODBUS_ERROR_RECOVERY_LINK|MODBUS_ERROR_RECOVERY_PROTOCOL) == -1) {
+	  fprintf(stderr, "Error: failed to set error recovery: %s\n", modbus_strerror(errno));
+	  return -1;
+     }
+
+     if (modbus_connect(*ctx) == -1) {
+	  fprintf(stderr, "Error: connection failed to %s:%d: %s\n",
+		  device.host, device.port, modbus_strerror(errno));
+	  return -1;
+     }
+
+     return 0;
+}
+
 void system_status_debug_print(const struct system_status *status)
 {
     if (status == NULL) {
@@ -25,20 +58,23 @@ void system_status_debug_print(const struct system_status *status)
 
 int system_status_update(struct system_status *status)
 {
-     int16_t power_grid_l1, power_grid_l2, power_grid_l3;
-     int16_t consumption_power_l1, consumption_power_l2, consumption_power_l3;
-     uint16_t pv_power_l1, pv_power_l2, pv_power_l3;
-     uint16_t battery_power;
+     int16_t grid_l1, grid_l2, grid_l3;
+     int16_t consumption_l1, consumption_l2, consumption_l3;
+     uint16_t pv_l1, pv_l2, pv_l3;
+     int16_t battery_power;
 
-     if (   (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L1, 1, (uint16_t *)&power_grid_l1) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L2, 1, (uint16_t *)&power_grid_l2) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L3, 1, (uint16_t *)&power_grid_l3) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_PV_AC_IN_L1, 1, (uint16_t *)&pv_power_l1) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_PV_AC_IN_L2, 1, (uint16_t *)&pv_power_l2) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_PV_AC_IN_L3, 1, (uint16_t *)&pv_power_l3) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L1, 1, (uint16_t *)&consumption_power_l1) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L2, 1, (uint16_t *)&consumption_power_l2) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L3, 1, (uint16_t *)&consumption_power_l3) == -1)
+     uint16_t power_evcs;
+     uint16_t charge_start, charger_status, charging_mode;
+
+     if (   (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L1, 1, (uint16_t *)&grid_l1) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L2, 1, (uint16_t *)&grid_l2) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L3, 1, (uint16_t *)&grid_l3) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_PV_AC_IN_L1, 1, (uint16_t *)&pv_l1) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_PV_AC_IN_L2, 1, (uint16_t *)&pv_l2) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_PV_AC_IN_L3, 1, (uint16_t *)&pv_l3) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L1, 1, (uint16_t *)&consumption_l1) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L2, 1, (uint16_t *)&consumption_l2) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L3, 1, (uint16_t *)&consumption_l3) == -1)
 	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_BATTERY_POWER, 1, (uint16_t *)&battery_power) == -1)) {
 	  fprintf(stderr, "Error: could not read GX value: %s\n", modbus_strerror(errno));
 	  fflush(stderr);
@@ -46,26 +82,22 @@ int system_status_update(struct system_status *status)
 	  return -1;
      }
 
-     status->power_grid = (int32_t)power_grid_l1 + (int32_t)power_grid_l2 + (int32_t)power_grid_l3;
-     status->power_pv = (int32_t)pv_power_l1 + (int32_t)pv_power_l2 + (int32_t)pv_power_l3;
-     status->power_consumption = (int32_t)consumption_power_l1 + (int32_t)consumption_power_l2 + (int32_t)consumption_power_l3;
-     status->power_battery = (int32_t)battery_power;
-
-
-     uint16_t evcs_total_power;
-     uint16_t charge_start, charger_status, charging_mode;
-
-     if ((modbus_read_registers(status->evcs_ctx, EVCS_REGISTER_TOTAL_POWER, 1, &evcs_total_power) == -1)
+     if ((modbus_read_registers(status->evcs_ctx, EVCS_REGISTER_TOTAL_POWER, 1, &power_evcs) == -1)
 	 || (modbus_read_registers(status->evcs_ctx, EVCS_REGISTER_CHARGE_START, 1, &charge_start) == -1)
 	 || (modbus_read_registers(status->evcs_ctx, EVCS_REGISTER_CHARGER_STATUS, 1, &charger_status) == -1)
 	 || (modbus_read_registers(status->evcs_ctx, EVCS_REGISTER_CHARGE_MODE, 1, &charging_mode) == -1)) {
 	  fprintf(stderr, "Error: could not read EVCS value: %s\n", modbus_strerror(errno));
 	  fflush(stderr);
 
-	  return -1;
+	  return -2;
      }
 
-     status->power_evcs = (int32_t)evcs_total_power;
+     status->power_grid = (int32_t)grid_l1 + (int32_t)grid_l2 + (int32_t)grid_l3;
+     status->power_pv = (int32_t)pv_l1 + (int32_t)pv_l2 + (int32_t)pv_l3;
+     status->power_consumption = (int32_t)consumption_l1 + (int32_t)consumption_l2 + (int32_t)consumption_l3;
+     status->power_battery = (int32_t)battery_power;
+
+     status->power_evcs = (int32_t)power_evcs;
      status->evcs_charge_start = charge_start;
      status->evcs_charger_status = charger_status;
      status->evcs_charging_mode = charging_mode;
@@ -250,37 +282,4 @@ const char *get_watchdog_reason(uint16_t code)
      default:
 	  return "Unknown watchdog reason";
      }
-}
-
-/*
- *
- * Powerplay
- *
- */
-
-int modbus_device_connect(struct modbus_device device, modbus_t **ctx)
-{
-     *ctx = modbus_new_tcp(device.host, device.port);
-     if (*ctx == NULL) {
-	  fprintf(stderr, "Error: Failed to create modbus context: %s\n", modbus_strerror(errno));
-	  return -1;
-     }
-
-     if (modbus_set_response_timeout(*ctx, 5, 0) == -1) {
-	  fprintf(stderr, "Error: failed to set timeout: %s\n", modbus_strerror(errno));
-	  return -1;
-     }
-
-     if (modbus_set_error_recovery(*ctx, MODBUS_ERROR_RECOVERY_LINK|MODBUS_ERROR_RECOVERY_PROTOCOL) == -1) {
-	  fprintf(stderr, "Error: failed to set error recovery: %s\n", modbus_strerror(errno));
-	  return -1;
-     }
-
-     if (modbus_connect(*ctx) == -1) {
-	  fprintf(stderr, "Error: connection failed to %s:%d: %s\n",
-		  device.host, device.port, modbus_strerror(errno));
-	  return -1;
-     }
-
-     return 0;
 }
