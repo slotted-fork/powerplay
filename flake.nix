@@ -49,15 +49,6 @@
                 description = "EVCS Modbus port";
               };
 
-              amptrack = {
-                enable = lib.mkEnableOption "amptrack monitoring";
-                sleepSecs = lib.mkOption {
-                  type = lib.types.int;
-                  default = 10;
-                  description = "Monitoring loop sleep seconds";
-                };
-              };
-
               sparkshift = {
                 enable = lib.mkEnableOption "sparkshift charge controller";
                 averagingSecs = lib.mkOption {
@@ -94,14 +85,6 @@
                 };
                 groups.sparkshift = {};
               })
-              (lib.mkIf config.services.powerplay.amptrack.enable {
-                users.amptrack = {
-                  isSystemUser = true;
-                  group = "amptrack";
-                  description = "Amptrack service user";
-                };
-                groups.amptrack = {};
-              })
             ];
 
             systemd.services = lib.mkMerge [
@@ -121,34 +104,6 @@
                       "SLEEP_SECS=${toString config.services.powerplay.sparkshift.sleepSecs}"
                       "AVERAGING_SECS=${toString config.services.powerplay.sparkshift.averagingSecs}"
                       "SPARKSHIFT_DEBUG=${toString config.services.powerplay.sparkshift.debug}"
-                    ];
-                    Restart = "always";
-                    RestartSec = "30";
-
-                    Type = "simple";
-
-                    DynamicUser = true;
-                    ReadOnlyPaths = "/";
-                    RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
-                    CapabilityBoundingSet = "";
-                    SystemCallFilter = [ "@system-service" ];
-                    SystemCallArchitectures = "native";
-                  };
-                };
-              })
-              (lib.mkIf config.services.powerplay.amptrack.enable {
-                amptrack = {
-                  description = "Amptrack monitor";
-                  wantedBy = [ "multi-user.target" ];
-                  after = [ "network.target" ];
-                  serviceConfig = {
-                    ExecStart = "${config.services.powerplay.package}/bin/amptrack";
-                    Environment = [
-                      "GX_HOST=${config.services.powerplay.gxHost}"
-                      "GX_PORT=${toString config.services.powerplay.gxPort}"
-                      "EVCS_HOST=${config.services.powerplay.evcsHost}"
-                      "EVCS_PORT=${toString config.services.powerplay.evcsPort}"
-                      "SLEEP_SECS=${toString config.services.powerplay.amptrack.sleepSecs}"
                     ];
                     Restart = "always";
                     RestartSec = "30";
@@ -185,8 +140,6 @@
           '';
 
           postInstall = ''
-            wrapProgram $out/bin/amptrack \
-              --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath buildInputs}
             wrapProgram $out/bin/sparkshift \
               --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath buildInputs}
           '';

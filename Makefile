@@ -11,20 +11,15 @@ LDFLAGS += $(shell pkg-config --libs libmodbus)
 
 PREFIX ?= ./target/
 
-TARGETS = sparkshift amptrack
+sparkshift: sparkshift.o powerplay.o
 
-.PHONY: all clean install
+powerplay.o: powerplay.h
+sparkshift.o: powerplay.h
 
-all: $(TARGETS)
+.PHONY: install
+install: sparkshift
+	install -m755 -Dt $(PREFIX)/bin/ $?
 
-%: %.o
-	$(CC) $< -o $@ $(LDFLAGS)
-
-%.o: %.c %.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-install:
-	install -m755 -Dt $(PREFIX)/bin/ $(TARGETS)
-
+.PHONY: clean
 clean:
-	rm -f $(TARGETS) *.o
+	rm -rf sparkshift *.o $(PREFIX) result
