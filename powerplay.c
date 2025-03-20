@@ -102,6 +102,8 @@ int system_status_update(struct system_status *status)
      status->evcs_charger_status = charger_status;
      status->evcs_charging_mode = charging_mode;
 
+     status->power_excess = status->power_battery - status->power_grid + status->power_evcs;
+
      return 0;
 }
 

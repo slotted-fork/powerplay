@@ -15,7 +15,19 @@ struct modbus_device {
      int port;
 };
 
+
+struct config {
+     int32_t power_excess_min;
+     time_t averaging_secs;
+     uint32_t sleep_secs;
+     int debug;
+     struct modbus_device gx;
+     struct modbus_device evcs;
+};
+
 struct system_status {
+     struct config config;
+
      modbus_t *gx_ctx, *evcs_ctx;
 
      int32_t power_grid;
@@ -23,6 +35,7 @@ struct system_status {
      int32_t power_consumption;
      int32_t power_battery;
      int32_t power_evcs;
+     int32_t power_excess;
 
      uint16_t evcs_charge_start;
      uint16_t evcs_charger_status;

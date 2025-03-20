@@ -24,12 +24,13 @@
 
 int main(void)
 {
-     struct config_t config = {0};
      struct system_status current = {0};
+     /* struct config_t config = {0}; */
+     if (config_from_env(&current.config)) return 1;
 
-     if (config_from_env(&config)) return 1;
-     if (modbus_device_connect(config.evcs, &current.evcs_ctx)) return 1;
-     if (modbus_device_connect(config.gx, &current.gx_ctx)) return 1;
+
+     if (modbus_device_connect(current.config.evcs, &current.evcs_ctx)) return 1;
+     if (modbus_device_connect(current.config.gx, &current.gx_ctx)) return 1;
 
      if (modbus_set_slave(current.gx_ctx, 100) == -1) { /* com.victronenergy.system */
 	  fprintf(stderr, "Error: setting modbus slave for GX failed: %s\n", modbus_strerror(errno));
@@ -50,17 +51,17 @@ int main(void)
 		 get_charging_mode(current.evcs_charging_mode),
 		 get_charger_status(current.evcs_charger_status),
 		 current.evcs_charge_start,
-		 (current.power_pv - current.power_battery + current.power_grid),
+		 current.power_excess,
 		 current.power_grid, current.power_pv, current.power_consumption,
 		 current.power_evcs, current.power_battery);
 	  fflush(stdout);
 
      loop:
-	  sleep(config.sleep_secs);
+	  sleep(current.config.sleep_secs);
      }
 }
 
-int config_from_env(struct config_t *config)
+int config_from_env(struct config *config)
 {
      const char *config_debug = getenv("SPARKSHIFT_DEBUG");
      if (config_debug == NULL) {
