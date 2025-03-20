@@ -1,5 +1,7 @@
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "powerplay.h"
 
@@ -8,6 +10,91 @@
  * Powerplay
  *
  */
+
+int config_from_env(struct config *config)
+{
+     const char *config_debug = getenv("SPARKSHIFT_DEBUG");
+     if (config_debug == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "SPARKSHIFT_DEBUG");
+	  return -1;
+     }
+
+     if (!strcmp("1", config_debug)) {
+	  config->debug = 1;
+     }
+
+     const char *config_averaging_secs = getenv("AVERAGING_SECS");
+     if (config_averaging_secs == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "AVERAGING_SECS");
+	  return -1;
+     }
+
+     config->averaging_secs = atoi(config_averaging_secs);
+     if (config->averaging_secs == 0) {
+	  fprintf(stderr, "Error: %s environment variable not an integer\n", "AVERAGING_SECS");
+	  return -1;
+     }
+
+     const char *config_sleep_secs = getenv("SLEEP_SECS");
+     if (config_sleep_secs == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "SLEEP_SECS");
+	  return -1;
+     }
+
+     config->sleep_secs = (uint32_t)atoi(config_sleep_secs);
+     if (config->sleep_secs == 0) {
+	  fprintf(stderr, "Error: %s environment variable not an integer\n", "SLEEP_SECS");
+	  return -1;
+     }
+
+     const char *config_power_excess_min = getenv("POWER_EXCESS_MIN");
+     if (config_power_excess_min == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "POWER_EXCESS_MIN");
+	  return -1;
+     }
+
+     config->power_excess_min = atoi(config_power_excess_min);
+     if (config->power_excess_min == 0) {
+	  fprintf(stderr, "Error: %s environment variable not an integer\n", "POWER_EXCESS_MIN");
+	  return -1;
+     }
+
+     config->gx.host = getenv("GX_HOST");
+     if (config->gx.host == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "GX_HOST");
+	  return -1;
+     }
+
+     const char *gx_port_str = getenv("GX_PORT");
+     if (gx_port_str == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "GX_PORT");
+	  return -1;
+     }
+     config->gx.port = atoi(gx_port_str);
+     if (config->gx.port == 0) {
+	  fprintf(stderr, "Error: %s environment variable not an integer\n", "GX_PORT");
+	  return -1;
+     }
+
+     config->evcs.host = getenv("EVCS_HOST");
+     if (config->evcs.host == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "EVCS_HOST");
+	  return -1;
+     }
+
+     const char *evcs_port_str = getenv("EVCS_PORT");
+     if (evcs_port_str == NULL) {
+	  fprintf(stderr, "Error: %s environment variable not set\n", "EVCS_PORT");
+	  return -1;
+     }
+     config->evcs.port = atoi(evcs_port_str);
+     if (config->evcs.port == 0) {
+	  fprintf(stderr, "Error: %s environment variable not an integer\n", "EVCS_PORT");
+	  return -1;
+     }
+
+     return 0;
+}
 
 int modbus_device_connect(struct modbus_device device, modbus_t **ctx)
 {

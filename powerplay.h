@@ -42,6 +42,7 @@ struct system_status {
      uint16_t evcs_charging_mode;
 };
 
+int config_from_env(struct config *config);
 int modbus_device_connect(struct modbus_device device, modbus_t **ctx);
 void system_status_debug_print(const struct system_status *status);
 int system_status_update(struct system_status *status);
