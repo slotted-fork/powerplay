@@ -37,6 +37,9 @@ struct system_status {
      int32_t power_evcs;
      int32_t power_excess;
 
+     uint16_t soc_battery;
+     uint16_t soc_ev;
+
      uint16_t evcs_charge_start;
      uint16_t evcs_charger_status;
      uint16_t evcs_charging_mode;
@@ -66,6 +69,7 @@ typedef enum {
      GX_REGISTER_GRID_L2				= 821, /* int16,  com.victronenergy.system */
      GX_REGISTER_GRID_L3				= 822, /* int16,  com.victronenergy.system */
      GX_REGISTER_BATTERY_POWER				= 842, /* int16,  com.victronenergy.system */
+     GX_REGISTER_BATTERY_SOC				= 843, /* uint16, com.victronenergy.system */
 } gx_register_t;
 
 typedef enum {

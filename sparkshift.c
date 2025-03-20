@@ -41,19 +41,18 @@ int main(void)
      */
      for(size_t i = 0;; ++i) {
 
-	  /* If gathering of system status fails, ignore and loop again */
 	  if (system_status_update(&current)) goto loop;
 
-	  printf("M/%c S/%c C/%d X/%7d G/%7d P/%7d C/%7d E/%7d B/%7d \n",
+	  printf("M/%c S/%c C/%d X/%7d G/%7d B/%7d P/%7d C/%7d E/%7d BS/%3d ES/%3d\n",
 		 get_charging_mode(current.evcs_charging_mode),
 		 get_charger_status(current.evcs_charger_status),
 		 current.evcs_charge_start,
-		 current.power_excess,
-		 current.power_grid, current.power_pv, current.power_consumption,
-		 current.power_evcs, current.power_battery);
-	  fflush(stdout);
+		 current.power_excess, current.power_grid, current.power_battery,
+		 current.power_pv, current.power_consumption, current.power_evcs,
+		 current.soc_battery, current.soc_ev);
 
      loop:
+	  fflush(stdout);
 	  sleep(current.config.sleep_secs);
      }
 }

@@ -123,37 +123,18 @@ int modbus_device_connect(struct modbus_device device, modbus_t **ctx)
      return 0;
 }
 
-void system_status_debug_print(const struct system_status *status)
-{
-    if (status == NULL) {
-        printf("System status is NULL\n");
-        return;
-    }
-
-    printf("System Status Debug:\n");
-    printf("  gx_ctx:               %p\n", (void *)status->gx_ctx);
-    printf("  evcs_ctx:             %p\n", (void *)status->evcs_ctx);
-    printf("  Grid Power:           %d W\n", status->power_grid);
-    printf("  PV Power:             %d W\n", status->power_pv);
-    printf("  Consumption Power:    %d W\n", status->power_consumption);
-    printf("  Battery Power:        %d W\n", status->power_battery);
-    printf("  EVCS Power:           %d W\n", status->power_evcs);
-    printf("  EVCS Charge Start:    %u\n", status->evcs_charge_start);
-    printf("  EVCS Charger Status:  %u\n", status->evcs_charger_status);
-    printf("  EVCS Charging Mode:   %u\n", status->evcs_charging_mode);
-}
-
 int system_status_update(struct system_status *status)
 {
      int16_t grid_l1, grid_l2, grid_l3;
      int16_t consumption_l1, consumption_l2, consumption_l3;
      uint16_t pv_l1, pv_l2, pv_l3;
-     int16_t battery_power;
+     int16_t power_battery;
+     uint16_t soc_battery;
 
      uint16_t power_evcs;
      uint16_t charge_start, charger_status, charging_mode;
 
-     if (   (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L1, 1, (uint16_t *)&grid_l1) == -1)
+     if ((modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L1, 1, (uint16_t *)&grid_l1) == -1)
 	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L2, 1, (uint16_t *)&grid_l2) == -1)
 	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_GRID_L3, 1, (uint16_t *)&grid_l3) == -1)
 	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_PV_AC_IN_L1, 1, (uint16_t *)&pv_l1) == -1)
@@ -162,7 +143,8 @@ int system_status_update(struct system_status *status)
 	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L1, 1, (uint16_t *)&consumption_l1) == -1)
 	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L2, 1, (uint16_t *)&consumption_l2) == -1)
 	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_AC_CONSUMPTION_L3, 1, (uint16_t *)&consumption_l3) == -1)
-	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_BATTERY_POWER, 1, (uint16_t *)&battery_power) == -1)) {
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_BATTERY_POWER, 1, (uint16_t *)&power_battery) == -1)
+	 || (modbus_read_registers(status->gx_ctx, GX_REGISTER_BATTERY_SOC, 1, (uint16_t *)&soc_battery) == -1)) {
 	  fprintf(stderr, "Error: could not read GX value: %s\n", modbus_strerror(errno));
 	  fflush(stderr);
 
@@ -182,16 +164,38 @@ int system_status_update(struct system_status *status)
      status->power_grid = (int32_t)grid_l1 + (int32_t)grid_l2 + (int32_t)grid_l3;
      status->power_pv = (int32_t)pv_l1 + (int32_t)pv_l2 + (int32_t)pv_l3;
      status->power_consumption = (int32_t)consumption_l1 + (int32_t)consumption_l2 + (int32_t)consumption_l3;
-     status->power_battery = (int32_t)battery_power;
-
+     status->power_battery = (int32_t)power_battery;
      status->power_evcs = (int32_t)power_evcs;
+     status->power_excess = status->power_battery - status->power_grid + status->power_evcs;
+
+     status->soc_battery = soc_battery;
+     status->soc_ev = 999;
+
      status->evcs_charge_start = charge_start;
      status->evcs_charger_status = charger_status;
      status->evcs_charging_mode = charging_mode;
 
-     status->power_excess = status->power_battery - status->power_grid + status->power_evcs;
-
      return 0;
+}
+
+void system_status_debug_print(const struct system_status *status)
+{
+    if (status == NULL) {
+        printf("System status is NULL\n");
+        return;
+    }
+
+    printf("System Status Debug:\n");
+    printf("  gx_ctx:               %p\n", (void *)status->gx_ctx);
+    printf("  evcs_ctx:             %p\n", (void *)status->evcs_ctx);
+    printf("  Grid Power:           %d W\n", status->power_grid);
+    printf("  PV Power:             %d W\n", status->power_pv);
+    printf("  Consumption Power:    %d W\n", status->power_consumption);
+    printf("  Battery Power:        %d W\n", status->power_battery);
+    printf("  EVCS Power:           %d W\n", status->power_evcs);
+    printf("  EVCS Charge Start:    %u\n", status->evcs_charge_start);
+    printf("  EVCS Charger Status:  %u\n", status->evcs_charger_status);
+    printf("  EVCS Charging Mode:   %u\n", status->evcs_charging_mode);
 }
 
 /*
