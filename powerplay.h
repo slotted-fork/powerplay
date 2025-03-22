@@ -47,8 +47,8 @@ struct system_status {
 
 int config_from_env(struct config *config);
 int modbus_device_connect(struct modbus_device device, modbus_t **ctx);
-void system_status_debug_print(const struct system_status *status);
 int system_status_update(struct system_status *status);
+void system_status_debug_print(const struct system_status *status);
 
 /*
  *
@@ -129,11 +129,12 @@ typedef enum {
     EVCS_CHARGER_STATUS_STOP_CHARGING			= 24,
 } evcs_charger_status_t;
 
-char get_charger_status(evcs_charger_status_t status);
+int evcs_charge_start_set(int start);
+char get_charger_status_char(evcs_charger_status_t status);
 const char *get_charger_status_str(evcs_charger_status_t status);
-char get_charging_mode(evcs_charge_mode_t mode);
+char get_charging_mode_char(evcs_charge_mode_t mode);
 const char *get_charging_mode_str(evcs_charge_mode_t mode);
-const char *get_watchdog_reason(uint16_t code);
-const char *get_reset_reason(uint16_t code);
+const char *get_watchdog_reason_str(uint16_t code);
+const char *get_reset_reason_str(uint16_t code);
 
 #endif
