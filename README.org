@@ -15,9 +15,6 @@ It has a single dependency on [[https://libmodbus.org/][libmodbus]].
 ** Sparkshift
 Manages Victron EVCS to ensure charging during excess PV production
 
-** Amptrack
-Monitors stats from power consumption and production
-
 ** Example NixOS configuration
 #+begin_src nix
   {
@@ -37,7 +34,6 @@ Monitors stats from power consumption and production
               gxHost = "192.2.1.5";
               evcsHost = "192.2.1.19";
               sparkshift.enable = true;
-              amptrack.enable = true;
             };
           }
         ];
