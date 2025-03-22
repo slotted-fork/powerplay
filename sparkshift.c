@@ -40,10 +40,7 @@ int main(void)
      for(size_t i = 0;; ++i) {
 	  int64_t power_excess_mean;
 
-	  if (system_status_update(&current)) {
-	       fprintf(stderr, "Error: failed to get system status\n");
-	       goto error;
-	  };
+	  if (system_status_update(&current)) goto loop;
 
 	  rounds += 1;
 	  power_excess_accum += current.power_excess;
@@ -61,15 +58,9 @@ int main(void)
 
 	  if ((rounds * current.config.sleep_secs) >= current.config.averaging_secs) {
 	       if (power_excess_mean > current.config.power_excess_min) {
-		    if (evcs_charge_start_set(1)) {
-			 fprintf(stderr, "Error: failed to set charge start to 1\n");
-			 goto error;
-		    };
+		    if (evcs_charge_start_set(&current, 1)) goto loop;
 	       } else {
-		    if (evcs_charge_start_set(0)) {
-			 fprintf(stderr, "Error: failed to set charge start to 0\n");
-			 goto error;
-		    };
+		    if (evcs_charge_start_set(&current, 0)) goto loop;
 	       }
 	       power_excess_accum = 0;
 	       rounds = 0;
@@ -78,10 +69,5 @@ int main(void)
      loop:
 	  fflush(stdout);
 	  sleep(current.config.sleep_secs);
-	  continue;
-
-     error:
-	  fflush(stderr);
-	  goto loop;
      }
 }

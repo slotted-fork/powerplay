@@ -129,7 +129,7 @@ typedef enum {
     EVCS_CHARGER_STATUS_STOP_CHARGING			= 24,
 } evcs_charger_status_t;
 
-int evcs_charge_start_set(int start);
+int evcs_charge_start_set(const struct system_status *status, uint16_t start);
 char get_charger_status_char(evcs_charger_status_t status);
 const char *get_charger_status_str(evcs_charger_status_t status);
 char get_charging_mode_char(evcs_charge_mode_t mode);

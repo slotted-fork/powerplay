@@ -184,16 +184,19 @@ error:
      return -1;
 }
 
-int evcs_charge_start_set(int start)
+int evcs_charge_start_set(const struct system_status *status, uint16_t start)
 {
      assert((start == 0 || start == 1) && "start value outside range");
 
-     printf("This would set charge start to %d\n", start);
+     if (modbus_write_register(status->evcs_ctx, EVCS_REGISTER_CHARGE_START, start) == -1) {
+	  fprintf(stderr, "Error: could not set EVCS charge start value to %d: %s\n", start, modbus_strerror(errno));
+	  goto error;
+     }
 
      return 0;
 
 error:
-     assert(0 && "TODO: implement charge start changes");
+     fflush(stderr);
      return -1;
 }
 
